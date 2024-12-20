@@ -1,37 +1,47 @@
 // src/components/ProductList.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './ProductList.css';
+
+import './ProductList.css'
 
 function ProductList() {
   const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [sortBy, setSortBy] = useState('name'); // 'name', 'priceLow', 'priceHigh'
+  const [sortBy, setSortBy] = useState('name');
 
-  // 샘플 데이터
-  const products = [
-    { productId: 1, productName: "아메리카노", price: 4500, category: "COFFEE" },
-    { productId: 2, productName: "카페라떼", price: 5000, category: "COFFEE" },
-    { productId: 3, productName: "카푸치노", price: 5000, category: "COFFEE" },
-    { productId: 4, productName: "녹차", price: 4000, category: "TEA" },
-    { productId: 5, productName: "홍차", price: 4000, category: "TEA" },
-  ];
+  useEffect(() => {
+    fetch('http://localhost:8080/products')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('네트워크 응답이 올바르지 않습니다');
+        }
+        return response.json();
+      })
+      .then(data => {
+        setProducts(data);
+        setLoading(false);
+      })
+      .catch(error => {
+        setError(error.message);
+        setLoading(false);
+      });
+  }, []);
 
   // unique 카테고리 추출
   const categories = ['ALL', ...new Set(products.map(p => p.category))];
 
   // 필터링 및 정렬 로직
   const filteredAndSortedProducts = products
-    // 카테고리 필터링
     .filter(product => 
       selectedCategory === 'ALL' ? true : product.category === selectedCategory
     )
-    // 검색어 필터링
     .filter(product =>
       product.productName.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    // 정렬
     .sort((a, b) => {
       switch (sortBy) {
         case 'priceLow':
@@ -43,65 +53,72 @@ function ProductList() {
       }
     });
 
-  // 상품 상세 페이지로 이동
-  const handleProductClick = (productId) => {
-    navigate(`/product/${productId}`);
-  };
+  if (loading) return <div>로딩 중...</div>;
+  if (error) return <div>에러 발생: {error}</div>;
 
   return (
-    <div className="product-list-container">
-      {/* 필터링 및 검색 컨트롤 */}
-      <div className="controls">
-        {/* 검색 */}
-        <input
-          type="text"
-          placeholder="메뉴 검색..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="search-input"
-        />
+    <div className="container py-4">
+      {/* 검색 및 필터 영역 */}
+      <div className="row mb-4">
+        <div className="col-md-4 mb-3">
+          <input
+            type="text"
+            placeholder="메뉴 검색"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="form-control"
+          />
+        </div>
+        
+        <div className="col-md-4 mb-3">
+          <select 
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="form-select"
+          >
+            {categories.map(category => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        </div>
 
-        {/* 카테고리 필터 */}
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="category-select"
-        >
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
-
-        {/* 정렬 옵션 */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="sort-select"
-        >
-          <option value="name">이름순</option>
-          <option value="priceLow">가격 낮은순</option>
-          <option value="priceHigh">가격 높은순</option>
-        </select>
+        <div className="col-md-4 mb-3">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="form-select"
+          >
+            <option value="name">이름순</option>
+            <option value="priceLow">가격 낮은순</option>
+            <option value="priceHigh">가격 높은순</option>
+          </select>
+        </div>
       </div>
 
-      {/* 상품 리스트 */}
-      <div className="product-grid">
+      {/* 상품 목록 */}
+      <div className="row g-4">
         {filteredAndSortedProducts.map(product => (
-          <div
-            key={product.productId}
-            className="product-item"
-            onClick={() => handleProductClick(product.productId)}
-          >
-            <h3 className="product-name">{product.productName}</h3>
-            <p className="product-price">{product.price.toLocaleString()}원</p>
-            <p className="product-category">{product.category}</p>
+          <div key={product.productId} className="col-md-6 col-lg-4">
+            <div 
+              onClick={() => navigate(`/product/${product.productId}`)}
+              className="card h-100 shadow-sm cursor-pointer"
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="card h-100 shadow-sm">
+                <div className="card-img-placeholder"></div>
+                <div className="card-body">
+                  <h5 className="card-title">{product.productName}</h5>
+                  <p className="card-price">{product.price.toLocaleString()}원</p>
+                  <span className="badge">
+                    {product.category}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
     </div>
   );
 }
-
 export default ProductList;
